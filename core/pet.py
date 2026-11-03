@@ -200,6 +200,11 @@ class Pet:
         self.react("love")
         return True
 
+    def chat(self):
+        """A friendly chat is a little bit fun."""
+        if not self.asleep:
+            self._change("fun", 2)
+
     def rest(self, amount):
         """Extra energy during a nap, on top of normal sleep recovery."""
         self._change("energy", amount)

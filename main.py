@@ -16,17 +16,19 @@ import sys
 import pygame
 
 import config
+from core.llm import ChatClient
 from core.pet import STATS, Pet
 from core.save import SaveStore
 from core.sensor import SensorService
 from scenes.base import PlaceholderScene
+from scenes.chat import ChatScene
 from scenes.clean import CleanScene
 from scenes.feed import FeedScene
 from scenes.home import HomeScene
 from scenes.sleep import SleepScene
 from ui import theme
 
-SCENES = {"Feed": FeedScene, "Clean": CleanScene, "Sleep": SleepScene}
+SCENES = {"Feed": FeedScene, "Clean": CleanScene, "Sleep": SleepScene, "Chat": ChatScene}
 NEEDS_AWAKE = {"Feed", "Clean", "Games", "Chat"}
 
 MOUSE_EVENTS = (pygame.MOUSEMOTION, pygame.MOUSEBUTTONDOWN, pygame.MOUSEBUTTONUP)
@@ -52,6 +54,9 @@ class App:
 
         self.sensor = SensorService(fake=fake_sensor)
         self.sensor.start()
+
+        self.chat_client = ChatClient()
+        self.chat_client.warm_up()
 
         self.home = HomeScene(self)
         self.scene = self.home
@@ -124,7 +129,7 @@ class App:
             if mods & pygame.KMOD_CTRL and mods & pygame.KMOD_SHIFT:
                 self.running = False
                 return True
-        if self.debug and event.type == pygame.KEYDOWN:
+        if self.debug and event.type == pygame.KEYDOWN and not self.scene.captures_keyboard:
             return self._handle_debug_key(event.key)
         return False
 

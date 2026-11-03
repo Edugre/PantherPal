@@ -23,9 +23,13 @@ SENSOR_STALE_AFTER = 30.0    # treat readings older than this as missing
 
 AUTOSAVE_INTERVAL = 30.0
 
-# Local LLM (step 4)
+# Local LLM: Ollama on this Pi only (never a remote host)
 OLLAMA_URL = "http://127.0.0.1:11434"
 OLLAMA_MODEL = "llama3.2:3b"
+OLLAMA_KEEP_ALIVE = "2h"     # keep the model loaded so answers start quickly
+CHAT_MAX_TOKENS = 100        # ~3 short sentences
+CHAT_HISTORY = 6             # past messages the model sees
+CHAT_TIMEOUT = 90            # seconds
 
 # Defaults for parent-adjustable settings, stored in the save file.
 DEFAULT_SETTINGS = {

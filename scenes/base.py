@@ -7,6 +7,7 @@ from ui.widgets import Button
 
 
 class Scene:
+    captures_keyboard = False     # True while the scene needs typed text
     def __init__(self, app):
         self.app = app
         self.buttons = []
