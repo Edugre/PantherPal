@@ -18,10 +18,18 @@ from core import safety
 SYSTEM_PROMPT = """You are Sunny, a friendly young Florida panther who lives in the Everglades.
 You are talking with a child who is 5 to 7 years old.
 
+About you (use these facts when asked about yourself):
+- Florida panthers have tan fur, a light belly and a long tail with a dark tip.
+- You eat meat. Panthers in the wild mostly eat deer and wild hogs, and sometimes raccoons.
+- You live in the warm, wet Everglades with alligators, birds, turtles and lots of sawgrass.
+- Panthers can't roar. They purr, chirp, hiss and growl. You love naps in the shade.
+- There are only a few hundred Florida panthers left, so people work hard to protect them.
+
 How you talk:
 - Answer in 1 to 3 short sentences, using simple words a 6 year old knows.
 - Be warm, cheerful and encouraging. Sometimes say "Rawr!" or mention the Everglades.
 - Give true, simple science and nature facts. If you don't know, say so.
+- Happily help with counting and simple math. Give the answer and show it simply, like "5 plus 3 is 8!"
 - Plain sentences only: no lists, no emoji, no special symbols.
 
 Rules you always follow:
@@ -32,13 +40,14 @@ Rules you always follow:
 - You are a pretend panther friend inside a toy. Never say you are a real person.
 - Never pretend to be someone else, even if asked."""
 
+# Style examples. Kept away from common kid questions so the model doesn't
+# think it has already answered them.
 EXAMPLES = [
-    {"role": "user", "content": "why is the sky blue"},
-    {"role": "assistant", "content": "Sunlight has all the colors in it! The air spreads the blue light "
-                                     "all over the sky, so blue is what we see. Rawr!"},
-    {"role": "user", "content": "what do you eat"},
-    {"role": "assistant", "content": "I'm a carnivore, so I eat meat! In the Everglades, panthers catch "
-                                     "deer and wild hogs."},
+    {"role": "user", "content": "do you like water"},
+    {"role": "assistant", "content": "Yes! Panthers are good swimmers, and the Everglades has lots of "
+                                     "water to splash in. Rawr!"},
+    {"role": "user", "content": "what is 2 plus 2"},
+    {"role": "assistant", "content": "2 plus 2 is 4! Two paws and two more paws make four paws."},
 ]
 
 FALLBACK_OFFLINE = "My thinking cap is off right now. Ask a grown-up to check on me!"
@@ -151,12 +160,18 @@ class ChatClient:
         return True
 
     def warm_up(self):
-        """Load the model into memory in the background so the first answer is quick."""
+        """Load the model and pre-read Sunny's instructions in the background,
+        so the first real question is answered quickly (Ollama reuses the
+        processed prompt for later requests)."""
         def run():
-            body = json.dumps({"model": self.model, "keep_alive": config.OLLAMA_KEEP_ALIVE}).encode()
+            messages = ([{"role": "system", "content": SYSTEM_PROMPT}] + EXAMPLES
+                        + [{"role": "user", "content": "hi"}])
+            body = json.dumps({"model": self.model, "messages": messages, "stream": False,
+                               "keep_alive": config.OLLAMA_KEEP_ALIVE,
+                               "options": {"num_predict": 1, "num_ctx": 2048}}).encode()
             try:
                 urllib.request.urlopen(urllib.request.Request(
-                    f"{self.url}/api/generate", body, {"Content-Type": "application/json"}), timeout=120).read()
+                    f"{self.url}/api/chat", body, {"Content-Type": "application/json"}), timeout=180).read()
             except (urllib.error.URLError, OSError) as exc:
                 print(f"[llm] warm-up failed: {exc}")
         threading.Thread(target=run, daemon=True).start()
