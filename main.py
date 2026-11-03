@@ -7,7 +7,8 @@ Usage:
     python main.py --fake-sensor
 
 Keys: Esc = back to home, Ctrl+Shift+Q = quit (for grown-ups).
-With --debug: 1-4 drain food/clean/fun/energy, 0 refills all, S toggles sleep.
+With --debug: 1-4 drain food/clean/fun/energy, 0 refills all, S toggles sleep,
+T starts a 5-second test timer.
 """
 import argparse
 import signal
@@ -18,6 +19,7 @@ import pygame
 import config
 from core.llm import ChatClient
 from core.pet import STATS, Pet
+from core.reminders import Reminders
 from core.save import SaveStore
 from core.sensor import SensorService
 from scenes.base import PlaceholderScene
@@ -25,11 +27,14 @@ from scenes.chat import ChatScene
 from scenes.clean import CleanScene
 from scenes.feed import FeedScene
 from scenes.games.menu import GamesMenuScene
+from scenes.helper import HelperScene
 from scenes.home import HomeScene
 from scenes.sleep import SleepScene
 from ui import theme
+from ui.alert import AlertOverlay
 
-SCENES = {"Feed": FeedScene, "Clean": CleanScene, "Sleep": SleepScene, "Chat": ChatScene, "Games": GamesMenuScene}
+SCENES = {"Feed": FeedScene, "Clean": CleanScene, "Sleep": SleepScene, "Chat": ChatScene, "Games": GamesMenuScene,
+          "Helper": HelperScene}
 NEEDS_AWAKE = {"Feed", "Clean", "Games", "Chat"}
 
 MOUSE_EVENTS = (pygame.MOUSEMOTION, pygame.MOUSEBUTTONDOWN, pygame.MOUSEBUTTONUP)
@@ -58,6 +63,10 @@ class App:
 
         self.chat_client = ChatClient()
         self.chat_client.warm_up()
+
+        self.reminders = Reminders(self.store, self.settings)
+        self.alert = AlertOverlay(self._alert_dismissed)
+        self._reminder_timer = 0.0
 
         self.home = HomeScene(self)
         self.scene = self.home
@@ -88,6 +97,20 @@ class App:
         self.store.set("points", self.points)
         self.store.set("pet", self.pet.to_dict())
         self.store.save_settings(self.settings)
+
+    # --- timers, alarms, bedtime ---
+    def check_reminders(self, now=None):
+        for alert in self.reminders.check(now):
+            if alert.kind == "bedtime" and not self.pet.asleep:
+                self.pet.go_to_sleep()
+            elif alert.kind == "wake" and self.pet.asleep:
+                self.pet.wake_up()
+            if not alert.silent:
+                self.alert.push(alert)
+
+    def _alert_dismissed(self, alert):
+        if alert.kind == "bedtime":
+            self.go_home()
 
     # --- main loop ---
     def _to_logical(self, event):
@@ -142,6 +165,8 @@ class App:
             self.pet.stats.update({s: 100.0 for s in STATS})
         elif key == pygame.K_s:
             self.pet.wake_up() if self.pet.asleep else self.pet.go_to_sleep()
+        elif key == pygame.K_t:
+            self.reminders.add_timer("Test", 5)
         else:
             return False
         return True
@@ -153,10 +178,16 @@ class App:
                 for event in pygame.event.get():
                     event = self._to_logical(event)
                     if not self._handle_global(event):
-                        self.scene.handle_event(event)
+                        (self.alert if self.alert.active else self.scene).handle_event(event)
 
+                self._reminder_timer -= dt
+                if self._reminder_timer <= 0:
+                    self._reminder_timer = 1.0
+                    self.check_reminders()
                 self.pet.update(dt, self.sensor.latest())
                 self.scene.update(dt)
+                if self.alert.active:
+                    self.alert.update(dt)
                 self._autosave_timer += dt
                 if self._autosave_timer >= config.AUTOSAVE_INTERVAL:
                     self._autosave_timer = 0.0
@@ -164,6 +195,8 @@ class App:
 
                 self.canvas.fill(theme.BG)
                 self.scene.draw(self.canvas)
+                if self.alert.active:
+                    self.alert.draw(self.canvas)
                 self._present()
         finally:
             self.shutdown()

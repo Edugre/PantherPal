@@ -7,6 +7,7 @@ import pygame
 
 import config
 from core.pet import STAT_LABELS, STATS, LOW
+from core.reminders import format_clock, format_duration, parse_hhmm
 from scenes.base import Scene
 from ui import props, text, theme
 from ui.sunny import draw_sunny, make_sunny_renderer
@@ -53,7 +54,11 @@ class HomeScene(Scene):
 
     def _menu(self, name):
         if name == "Sleep" and self.app.pet.asleep:
-            self.app.pet.wake_up()
+            if self.app.reminders.quiet_hours():
+                wake = format_clock(parse_hhmm(self.app.settings["wake_time"]))
+                self.app.pet.say(f"Shh... it's nighttime. I'll wake up at {wake}!", 4)
+            else:
+                self.app.pet.wake_up()
         else:
             self.app.open_scene(name)
 
@@ -126,6 +131,15 @@ class HomeScene(Scene):
         panel(surface, (4, 4, w - 8, 28))
         text.draw(surface, time.strftime("%-I:%M %p"), (12, 18), text.MEDIUM, anchor="midleft")
         points_badge(surface, (w // 2, 18), self.app.points)
+
+        timers = self.app.reminders.timers
+        if timers:      # countdown for the timer that ends first
+            left = min(t["end"] for t in timers) - time.time()
+            badge = pygame.Rect(84, 9, 82, 18)
+            pygame.draw.rect(surface, theme.ORANGE if int(self.t * 2) % 2 or left > 10 else theme.YELLOW, badge)
+            pygame.draw.rect(surface, theme.BLACK, badge, 1)
+            text.draw(surface, f"Timer {format_duration(left)}", badge.center, text.MEDIUM, theme.BLACK,
+                      anchor="center", shadow=False)
 
         reading = self.app.sensor.latest()
         if reading is None:

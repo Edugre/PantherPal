@@ -35,6 +35,7 @@ CHAT_TIMEOUT = 90            # seconds
 DEFAULT_SETTINGS = {
     "parent_pin": "1234",
     "temp_unit": "F",          # "F" or "C"
+    "bedtime_enabled": True,
     "bedtime": "19:30",
     "wake_time": "07:00",
     "daily_chat_limit": 30,    # messages per day
