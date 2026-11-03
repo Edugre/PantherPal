@@ -10,7 +10,7 @@ import pygame
 import config
 from scenes.care import CareScene
 from ui import icons, text, theme
-from ui.sunny import SunnyRenderer, draw_sunny
+from ui.sunny import draw_sunny, make_sunny_renderer
 from ui.widgets import Button, panel
 
 FLY_TIME = 0.7
@@ -64,7 +64,7 @@ class FeedScene(CareScene):
 
     def __init__(self, app):
         super().__init__(app)
-        self.sunny = SunnyRenderer(cell=4)
+        self.sunny = make_sunny_renderer(cell=4)
         sw, sh = self.sunny.size
         self.sunny_rect = pygame.Rect(40, self.GROUND_Y - sh + 4, sw, sh)
         self.flying = None
@@ -87,8 +87,8 @@ class FeedScene(CareScene):
 
     @property
     def mouth(self):
-        c = self.sunny.cell
-        return self.sunny_rect.x + 12 * c, self.sunny_rect.y + 11 * c
+        mx, my = self.sunny.mouth
+        return self.sunny_rect.x + mx, self.sunny_rect.y + my
 
     def choose(self, card):
         if self.flying:

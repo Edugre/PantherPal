@@ -7,7 +7,7 @@ import pygame
 import config
 from scenes.care import CareScene
 from ui import text, theme
-from ui.sunny import SunnyRenderer, draw_sunny
+from ui.sunny import draw_sunny, make_sunny_renderer
 from ui.widgets import Button
 
 NAP_SECONDS = 20.0
@@ -23,7 +23,7 @@ class SleepScene(CareScene):
 
     def __init__(self, app):
         super().__init__(app)
-        self.sunny = SunnyRenderer(cell=4)
+        self.sunny = make_sunny_renderer(cell=4)
         sw, sh = self.sunny.size
         w, _ = config.LOGICAL_SIZE
         self.sunny_rect = pygame.Rect((w - sw) // 2 + 8, self.GROUND_Y - sh + 2, sw, sh)

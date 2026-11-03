@@ -9,7 +9,7 @@ import config
 from core.pet import STAT_LABELS, STATS, LOW
 from scenes.base import Scene
 from ui import text, theme
-from ui.sunny import SunnyRenderer, draw_sunny
+from ui.sunny import draw_sunny, make_sunny_renderer
 from ui.widgets import Button, panel, points_badge, speech_bubble
 
 GROUND_Y = 162
@@ -33,7 +33,7 @@ class HomeScene(Scene):
     def __init__(self, app):
         super().__init__(app)
         self.t = 0.0
-        self.sunny = SunnyRenderer(cell=4)
+        self.sunny = make_sunny_renderer(cell=4)
         self._chatter_timer = IDLE_CHATTER_EVERY
         w, h = config.LOGICAL_SIZE
         bw, gap = 60, 5

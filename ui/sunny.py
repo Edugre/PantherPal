@@ -1,11 +1,19 @@
-"""Sunny's sprite: a sitting Florida panther drawn from a cell grid.
+"""Sunny's sprite.
 
-The body is a fixed grid; eyes, mouth, tail and mud spots are drawn on top
-per frame depending on mood, then the whole thing gets a 1-cell black outline
-and is scaled up with nearest-neighbour.
+Two interchangeable renderers share one interface (size, cell, mouth,
+mud_points, render()):
+  * SunnyArt draws hand-made PNGs from assets/sunny/ (see the README there)
+  * SunnyRenderer is the built-in fallback: a sitting Florida panther drawn
+    from a cell grid, with eyes, mouth, tail and mud drawn on top per mood,
+    a 1-cell black outline, scaled up with nearest-neighbour.
+make_sunny_renderer() picks the art when it exists.
 """
+import json
 import math
 import random
+import re
+
+import config
 
 import pygame
 
@@ -69,6 +77,8 @@ MOUTHS = {
 }
 
 MUD_SPOTS = [(7, 15), (16, 16), (9, 18), (13, 2), (5, 6), (15, 13), (11, 19), (17, 7)]
+# Cells for scrub-able mud blobs in the bath (all above the tub rim).
+SCRUB_CELLS = [(6, 6), (16, 6), (12, 3), (8, 13), (15, 14), (10, 16), (7, 10), (17, 12)]
 
 # Per-mood look: eyes, mouth, tail wag speed (0 = tail lying down)
 LOOKS = {
@@ -106,6 +116,8 @@ class SunnyRenderer:
         self._base = _base_surface()
         # +2 cells for the outline on every side
         self.size = ((GRID_W + 2) * cell, (GRID_H + 2) * cell)
+        self.mouth = (12 * cell, 11 * cell)
+        self.mud_points = [((x + 1) * cell + cell // 2, (y + 1) * cell + cell // 2) for x, y in SCRUB_CELLS]
 
     def render(self, mood, t, clean=100.0):
         eyes, mouth, wag = LOOKS.get(mood, LOOKS["ok"])
@@ -161,6 +173,141 @@ class SunnyRenderer:
             sway = math.sin(t * wag) * (i / length) * 2
             x = 21 + round(1.2 * math.sin(i * 0.45) + sway)
             cells.set_at((x, y), tip if i >= length - 2 else tawny)
+
+
+# ---------------------------------------------------------------------------
+# Hand-drawn art
+# ---------------------------------------------------------------------------
+
+# If a mood has no drawing, try these in order. Everything ends at "idle".
+FALLBACKS = {
+    "ok": [],
+    "happy": [],
+    "love": ["happy"],
+    "eating": ["happy"],
+    "hungry": ["sad"],
+    "dirty": ["sad"],
+    "bored": ["sad"],
+    "sleepy": ["sad"],
+    "hot": ["sad"],
+    "cold": ["sad"],
+    "sleeping": [],
+}
+DEFAULT_ART_FPS = 4
+MUD = (110, 80, 40)
+_FRAME_RE = re.compile(r"^([a-z]+)(?:_(\d+))?\.png$")
+_art_cache = {}
+
+
+def load_art(directory=None):
+    """{name: [frame surfaces]} plus settings from sprite.json, or None if
+    there is no idle drawing. Cached per directory."""
+    directory = directory or config.SUNNY_ART_DIR
+    key = str(directory)
+    if key in _art_cache:
+        return _art_cache[key]
+    frames = {}
+    if directory.is_dir():
+        found = {}
+        for path in directory.iterdir():
+            match = _FRAME_RE.match(path.name.lower())
+            if match:
+                name, index = match.group(1), int(match.group(2) or 0)
+                found.setdefault(name, []).append((index, path))
+        for name, items in found.items():
+            frames[name] = [pygame.image.load(str(p)) for _, p in sorted(items)]
+    settings = {}
+    settings_path = directory / "sprite.json"
+    if settings_path.is_file():
+        settings = json.loads(settings_path.read_text())
+    art = {"frames": frames, "settings": settings} if "idle" in frames else None
+    if frames and art is None:
+        print(f"[sunny] {directory} has drawings but no idle.png; using the built-in sprite")
+    _art_cache[key] = art
+    return art
+
+
+def resolve_mood(mood, available):
+    """Name of the drawing to use for `mood`."""
+    for name in [mood] + FALLBACKS.get(mood, []) + ["idle"]:
+        if name in available:
+            return name
+    return "idle"
+
+
+class SunnyArt:
+    def __init__(self, art, target_height):
+        self.settings = art["settings"]
+        self.fps = self.settings.get("fps", DEFAULT_ART_FPS)
+        raw = art["frames"]
+        art_w = max(f.get_width() for fs in raw.values() for f in fs)
+        art_h = max(f.get_height() for fs in raw.values() for f in fs)
+
+        # Crisp whole-number upscaling for small pixel art; smooth fit otherwise.
+        factor = target_height / art_h
+        if factor >= 1:
+            factor = int(factor)
+            scale = pygame.transform.scale
+        else:
+            scale = pygame.transform.smoothscale
+        self.factor = factor
+        self.size = (round(art_w * factor), round(art_h * factor))
+        self.cell = max(2, self.size[1] // 24)    # effects scale with this
+
+        self.frames = {}
+        for name, frames in raw.items():
+            out = []
+            for f in frames:
+                scaled = scale(f, (round(f.get_width() * factor), round(f.get_height() * factor)))
+                canvas = pygame.Surface(self.size, pygame.SRCALPHA)
+                # bottom-centre align so different frame sizes stand on the same spot
+                canvas.blit(scaled, scaled.get_rect(midbottom=(self.size[0] // 2, self.size[1])))
+                out.append(canvas)
+            self.frames[name] = out
+
+        mouth = self.settings.get("mouth")
+        self.mouth = ((round(mouth[0] * factor), round(mouth[1] * factor)) if mouth
+                      else (self.size[0] // 2, int(self.size[1] * 0.45)))
+        self.mud_points = self._find_mud_points()
+
+    def _find_mud_points(self, count=8):
+        """Spots on solid parts of the idle drawing, away from its edges."""
+        idle = self.frames["idle"][0]
+        mask = pygame.mask.from_surface(idle)
+        w, h = self.size
+        margin = max(3, self.cell)
+        points = []
+        for gy in range(2, 10):
+            for gx in range(1, 9):
+                x, y = gx * w // 9, gy * h // 13
+                if all(0 <= px < w and 0 <= py < h and mask.get_at((px, py))
+                       for px, py in ((x, y), (x - margin, y), (x + margin, y), (x, y - margin), (x, y + margin))):
+                    points.append((x, y))
+        random.Random(11).shuffle(points)
+        return points[:count]
+
+    def render(self, mood, t, clean=100.0):
+        frames = self.frames[resolve_mood(mood, self.frames)]
+        frame = frames[int(t * self.fps) % len(frames)]
+        if clean >= 70 or not self.mud_points:
+            return frame
+        frame = frame.copy()
+        spots = round((1 - clean / 100) * len(self.mud_points))
+        for x, y in self.mud_points[:spots]:
+            pygame.draw.circle(frame, MUD, (x, y), max(2, self.cell))
+        return frame
+
+
+def make_sunny_renderer(cell=4):
+    """Hand-drawn art when assets/sunny/idle.png exists, else the built-in sprite.
+
+    `cell` sets the size: art is scaled to the same height the built-in
+    sprite would have at that cell size.
+    """
+    art = load_art()
+    if art:
+        return SunnyArt(art, (GRID_H + 2) * cell)
+    return SunnyRenderer(cell)
 
 
 HEART = [".XX.XX.", "XXXXXXX", ".XXXXX.", "..XXX..", "...X..."]

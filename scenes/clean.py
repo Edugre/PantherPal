@@ -7,10 +7,8 @@ import pygame
 import config
 from scenes.care import CareScene
 from ui import theme
-from ui.sunny import SunnyRenderer, draw_sunny
+from ui.sunny import draw_sunny, make_sunny_renderer
 
-# Grid cells on Sunny's body where mud can sit (all above the tub rim).
-MUD_CELLS = [(6, 6), (16, 6), (12, 3), (8, 13), (15, 14), (10, 16), (7, 10), (17, 12)]
 SCRUB_PER_PIXEL = 0.025      # ~40px of scrubbing clears a blob
 SCRUB_RADIUS = 12
 TICKLE_EVERY = 3.0
@@ -24,7 +22,7 @@ class CleanScene(CareScene):
 
     def __init__(self, app):
         super().__init__(app)
-        self.sunny = SunnyRenderer(cell=5)
+        self.sunny = make_sunny_renderer(cell=5)
         sw, sh = self.sunny.size
         self.sunny_rect = pygame.Rect(self.TUB.centerx - sw // 2 + 10, self.TUB.top + 26 - sh, sw, sh)
         self.sponge = (300, 120)
@@ -34,10 +32,11 @@ class CleanScene(CareScene):
         self._tickle = 0.0
 
         clean = app.pet.stats["clean"]
-        count = 0 if clean >= 95 else min(len(MUD_CELLS), math.ceil((100 - clean) / 11))
-        c = self.sunny.cell
-        self.blobs = [{"off": ((x + 1) * c + c // 2, (y + 1) * c + c // 2), "hp": 1.0,
-                       "r": random.randint(5, 7)} for x, y in random.sample(MUD_CELLS, count)]
+        # Only spots that stay visible above the tub rim
+        rim = self.TUB.top - self.sunny_rect.y
+        spots = [p for p in self.sunny.mud_points if p[1] < rim - 4]
+        count = 0 if clean >= 95 else min(len(spots), math.ceil((100 - clean) / 11))
+        self.blobs = [{"off": p, "hp": 1.0, "r": random.randint(5, 7)} for p in random.sample(spots, count)]
         self._drawn_rect = self.sunny_rect
 
     def on_enter(self):
