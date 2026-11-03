@@ -79,7 +79,8 @@ it used) at home, bath and dirty sizes.
 | `heart.png` | hearts floating above Sunny               |
 | `moon.png`  | night sky on the home screen              |
 | `fish.png`  | the Fish food in Feed                     |
-| `ball.png`  | saved for the games (step 5)              |
+| `ball.png`  | the balls in "Which Has More?"            |
+| `deer.png`, `owl.png`, ... | optional animal pictures for "Who Eats What?" (any of: panther, alligator, owl, shark, eagle, deer, rabbit, manatee, cow, horse, raccoon, bear, pig, chicken, monkey). Without one, the animal's name is shown. |
 
-Props are trimmed to their visible pixels and shown at 1× (heart) or
-2× (moon, fish). Any prop that's missing uses the built-in drawing.
+Props are trimmed to their visible pixels and shown at 1× (heart),
+2× (moon, fish, ball) or 3× (animals). Any prop that's missing uses the built-in drawing.

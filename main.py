@@ -24,11 +24,12 @@ from scenes.base import PlaceholderScene
 from scenes.chat import ChatScene
 from scenes.clean import CleanScene
 from scenes.feed import FeedScene
+from scenes.games.menu import GamesMenuScene
 from scenes.home import HomeScene
 from scenes.sleep import SleepScene
 from ui import theme
 
-SCENES = {"Feed": FeedScene, "Clean": CleanScene, "Sleep": SleepScene, "Chat": ChatScene}
+SCENES = {"Feed": FeedScene, "Clean": CleanScene, "Sleep": SleepScene, "Chat": ChatScene, "Games": GamesMenuScene}
 NEEDS_AWAKE = {"Feed", "Clean", "Games", "Chat"}
 
 MOUSE_EVENTS = (pygame.MOUSEMOTION, pygame.MOUSEBUTTONDOWN, pygame.MOUSEBUTTONUP)

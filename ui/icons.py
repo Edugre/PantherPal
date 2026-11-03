@@ -13,6 +13,9 @@ PALETTE = {
     "G": theme.DARK_GREEN,
     "L": theme.GREEN,
     "P": theme.PINK,
+    "D": theme.DARK_GREY,
+    "C": (170, 220, 255),     # ice
+    "N": (110, 70, 40),       # cocoa
 }
 
 MEAT = [
@@ -89,6 +92,82 @@ STAR = [
     "..YYY..",
     ".YY.YY.",
     "YY...YY",
+]
+
+STAR_EMPTY = [row.replace("Y", "D") for row in STAR]
+
+SUN = [
+    "....Y....",
+    ".Y.....Y.",
+    "...OOO...",
+    "..OYYYO..",
+    "Y.OYYYO.Y",
+    "..OYYYO..",
+    "...OOO...",
+    ".Y.....Y.",
+    "....Y....",
+]
+
+FIRE = [
+    "...R....",
+    "..RR....",
+    "..RRR.R.",
+    ".RROR.RR",
+    ".ROORRR.",
+    "RROYYORR",
+    "ROYYYYOR",
+    "ROYYYYOR",
+    ".ROOOOR.",
+]
+
+COCOA = [
+    "..W..W...",
+    ".W..W....",
+    "..W..W...",
+    "RRRRRRR..",
+    "RNNNNNRRR",
+    "RRRRRRR.R",
+    "RRRRRRRRR",
+    "RRRRRRR..",
+    ".RRRRR...",
+]
+
+ICE = [
+    "CCCCCCCC",
+    "CWWCCCCC",
+    "CWCCCCCB",
+    "CCCCCCCB",
+    "CCCCCCCB",
+    "CCCCCCCB",
+    "CCCCCCBB",
+    "BBBBBBBB",
+]
+
+SNOWMAN = [
+    "...KKK...",
+    "...KKK...",
+    "..KKKKK..",
+    "...WWW...",
+    "..WKWKW..",
+    "..WWOWW..",
+    "...WWW...",
+    "..WWWWW..",
+    ".WWWKWWW.",
+    ".WWWWWWW.",
+    ".WWWKWWW.",
+    "..WWWWW..",
+]
+
+ICE_CREAM = [
+    ".PPPP..",
+    "PPPPPP.",
+    "PPWPPPP",
+    "PPPPPPP",
+    ".YYYYY.",
+    ".YOYOY.",
+    "..YYY..",
+    "..YOY..",
+    "...Y...",
 ]
 
 _cache = {}
