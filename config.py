@@ -5,6 +5,7 @@ BASE_DIR = Path(__file__).resolve().parent
 DATA_DIR = BASE_DIR / "data"
 DB_PATH = DATA_DIR / "sunny.db"
 SUNNY_ART_DIR = BASE_DIR / "assets" / "sunny"
+PROPS_DIR = BASE_DIR / "assets" / "props"
 
 PET_NAME = "Sunny"
 

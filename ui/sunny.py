@@ -17,7 +17,7 @@ import config
 
 import pygame
 
-from ui import text, theme
+from ui import props, text, theme
 
 GRID_W, GRID_H = 26, 22
 
@@ -119,6 +119,10 @@ class SunnyRenderer:
         self.mouth = (12 * cell, 11 * cell)
         self.mud_points = [((x + 1) * cell + cell // 2, (y + 1) * cell + cell // 2) for x, y in SCRUB_CELLS]
 
+    @staticmethod
+    def has_own(mood):
+        return False
+
     def render(self, mood, t, clean=100.0):
         eyes, mouth, wag = LOOKS.get(mood, LOOKS["ok"])
 
@@ -179,7 +183,8 @@ class SunnyRenderer:
 # Hand-drawn art
 # ---------------------------------------------------------------------------
 
-# If a mood has no drawing, try these in order. Everything ends at "idle".
+# If a mood has no drawing, try these in order. Everything ends at "idle"
+# (and "idle" itself falls back to the happy drawing when it isn't drawn).
 FALLBACKS = {
     "ok": [],
     "happy": [],
@@ -195,13 +200,16 @@ FALLBACKS = {
 }
 DEFAULT_ART_FPS = 4
 MUD = (110, 80, 40)
-_FRAME_RE = re.compile(r"^([a-z]+)(?:_(\d+))?\.png$")
+MOOD_NAMES = set(FALLBACKS) | {"idle", "sad"}
+# idle.png, idle_0.png, idle1.png, Happy2.PNG ... (case-insensitive)
+_FRAME_RE = re.compile(r"^([a-z]+?)_?(\d+)?\.png$")
 _art_cache = {}
 
 
 def load_art(directory=None):
-    """{name: [frame surfaces]} plus settings from sprite.json, or None if
-    there is no idle drawing. Cached per directory."""
+    """{name: [frame surfaces]}, the names actually drawn, and sprite.json
+    settings; or None if there is neither an idle nor a happy drawing.
+    Cached per directory."""
     directory = directory or config.SUNNY_ART_DIR
     key = str(directory)
     if key in _art_cache:
@@ -211,18 +219,25 @@ def load_art(directory=None):
         found = {}
         for path in directory.iterdir():
             match = _FRAME_RE.match(path.name.lower())
-            if match:
-                name, index = match.group(1), int(match.group(2) or 0)
-                found.setdefault(name, []).append((index, path))
+            if not match:
+                continue
+            name, index = match.group(1), int(match.group(2) or 0)
+            if name not in MOOD_NAMES:
+                print(f"[sunny] ignoring {path.name}: '{name}' is not a mood (props go in assets/props/)")
+                continue
+            found.setdefault(name, []).append((index, path))
         for name, items in found.items():
             frames[name] = [pygame.image.load(str(p)) for _, p in sorted(items)]
     settings = {}
     settings_path = directory / "sprite.json"
     if settings_path.is_file():
         settings = json.loads(settings_path.read_text())
-    art = {"frames": frames, "settings": settings} if "idle" in frames else None
+    drawn = set(frames)
+    if "idle" not in frames and "happy" in frames:
+        frames["idle"] = frames["happy"]
+    art = {"frames": frames, "drawn": drawn, "settings": settings} if "idle" in frames else None
     if frames and art is None:
-        print(f"[sunny] {directory} has drawings but no idle.png; using the built-in sprite")
+        print(f"[sunny] {directory} has drawings but no idle or happy; using the built-in sprite")
     _art_cache[key] = art
     return art
 
@@ -238,8 +253,20 @@ def resolve_mood(mood, available):
 class SunnyArt:
     def __init__(self, art, target_height):
         self.settings = art["settings"]
+        self.drawn = art["drawn"]
         self.fps = self.settings.get("fps", DEFAULT_ART_FPS)
         raw = art["frames"]
+        mouth = self.settings.get("mouth")
+
+        # Trim the empty border shared by every frame so Sunny stands on the
+        # ground and fills the space (one crop for all frames keeps them aligned).
+        all_frames = [f for fs in raw.values() for f in fs]
+        if len({f.get_size() for f in all_frames}) == 1:
+            crop = all_frames[0].get_bounding_rect().unionall([f.get_bounding_rect() for f in all_frames])
+            raw = {name: [f.subsurface(crop).copy() for f in fs] for name, fs in raw.items()}
+            if mouth:
+                mouth = (mouth[0] - crop.x, mouth[1] - crop.y)
+
         art_w = max(f.get_width() for fs in raw.values() for f in fs)
         art_h = max(f.get_height() for fs in raw.values() for f in fs)
 
@@ -265,7 +292,6 @@ class SunnyArt:
                 out.append(canvas)
             self.frames[name] = out
 
-        mouth = self.settings.get("mouth")
         self.mouth = ((round(mouth[0] * factor), round(mouth[1] * factor)) if mouth
                       else (self.size[0] // 2, int(self.size[1] * 0.45)))
         self.mud_points = self._find_mud_points()
@@ -285,6 +311,10 @@ class SunnyArt:
                     points.append((x, y))
         random.Random(11).shuffle(points)
         return points[:count]
+
+    def has_own(self, mood):
+        """True if this mood was drawn by hand (so its effects are in the art)."""
+        return mood in self.drawn
 
     def render(self, mood, t, clean=100.0):
         frames = self.frames[resolve_mood(mood, self.frames)]
@@ -314,6 +344,10 @@ HEART = [".XX.XX.", "XXXXXXX", ".XXXXX.", "..XXX..", "...X..."]
 
 
 def heart(surface, pos, size=2):
+    art = props.get("heart")
+    if art:
+        surface.blit(art, pos)
+        return
     x, y = pos
     for dy, row in enumerate(HEART):
         for dx, ch in enumerate(row):
@@ -343,6 +377,8 @@ def draw_sunny(surface, renderer, pet, rect, t, show_mud=True):
         for i in range(3):
             phase = (t * 0.8 + i / 3) % 1
             heart(surface, (r.centerx - 5 * c + i * 4 * c, int(r.top + 2 * c - phase * 8 * c)))
+    elif renderer.has_own(mood):
+        pass                                          # the drawing has its own effects
     elif mood == "hot":
         dy = int(t * 10) % (2 * c)
         pygame.draw.rect(surface, theme.BLUE, (r.left + 2 * c, r.top + 4 * c + dy, c, c + 2))

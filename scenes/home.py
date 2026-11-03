@@ -8,7 +8,7 @@ import pygame
 import config
 from core.pet import STAT_LABELS, STATS, LOW
 from scenes.base import Scene
-from ui import text, theme
+from ui import props, text, theme
 from ui.sunny import draw_sunny, make_sunny_renderer
 from ui.widgets import Button, panel, points_badge, speech_bubble
 
@@ -102,8 +102,12 @@ class HomeScene(Scene):
             for i, (x, y) in enumerate(self.stars):
                 if (int(self.t * 2) + i) % 7:      # gentle twinkle
                     surface.set_at((x, y), theme.WHITE)
-            pygame.draw.circle(surface, theme.LIGHT_GREY, (136, 56), 10)
-            pygame.draw.circle(surface, sky, (141, 52), 9)
+            moon = props.get("moon", 2)
+            if moon:
+                surface.blit(moon, moon.get_rect(center=(136, 56)))
+            else:
+                pygame.draw.circle(surface, theme.LIGHT_GREY, (136, 56), 10)
+                pygame.draw.circle(surface, sky, (141, 52), 9)
         else:
             pygame.draw.circle(surface, theme.YELLOW, (136, 56), 11)
 

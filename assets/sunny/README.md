@@ -1,20 +1,24 @@
 # Sunny's art
 
 Drop PNG drawings of Sunny in this folder. The app picks them up on its next
-start. If there's no `idle.png`, it uses the built-in pixel panther instead.
+start. If there's neither an `idle` nor a `happy` drawing, it uses the
+built-in pixel panther instead. Objects that aren't Sunny (food, toys, the
+moon, ...) go in `../props/`.
 
 ## File names
 
-One file per mood, or numbered frames for an animation:
+One file per mood, or numbered frames for an animation. Capitalisation
+doesn't matter and the underscore is optional:
 
 ```
 idle.png                      # still image
-idle_0.png  idle_1.png  ...   # animation, played in number order
+happy1.PNG  happy2.PNG  ...   # animation, played in number order
+happy_0.png happy_1.png ...   # same thing
 ```
 
 | File      | When it shows                          | If missing, uses |
 |-----------|----------------------------------------|------------------|
-| `idle`    | **required**: normal / "ok" mood        | (built-in sprite) |
+| `idle`    | normal / "ok" mood                     | happy            |
 | `happy`   | all needs high                         | idle             |
 | `love`    | being petted, after a bath, playing    | happy → idle     |
 | `eating`  | right after being fed                  | happy → idle     |
@@ -28,16 +32,18 @@ idle_0.png  idle_1.png  ...   # animation, played in number order
 | `sleeping`| napping / goodnight                    | idle             |
 | `ok`      | in-between mood (optional)             | idle             |
 
-The app adds some effects on top of your drawings, so you don't need to draw
-them: mud spots when Sunny is dirty, hearts, Zzz, sweat drops, bouncing,
-shivering and breathing.
+The app adds mud spots, hearts, bouncing, shivering and breathing on top of
+your drawings. When you draw a mood yourself (for example `sleeping` with its
+own Zzz, or `hot` with sweat), the app's matching effect is switched off so
+nothing is doubled.
 
 ## Drawing tips
 
 - **Transparent background.** Mud spots only land on the solid parts of
   the drawing.
-- **Same canvas size for every file** keeps Sunny from jumping around.
-  Different sizes still work, though: each frame is lined up bottom-centre.
+- **Same canvas size for every file** keeps Sunny from jumping around. The
+  empty border shared by all frames is trimmed automatically, so Sunny stands
+  on the ground. Different sizes still work: each frame is lined up bottom-centre.
 - **Size:** any size works. Small pixel art (for example 32×32 or 48×48) is
   enlarged in whole steps so the pixels stay sharp. Big drawings are shrunk
   smoothly. On screen, Sunny is about 96 px tall (home) or 120 px tall (bath)
@@ -65,3 +71,15 @@ shivering and breathing.
 
 This writes `data/sunny_preview.png`, which shows every mood (and which file
 it used) at home, bath and dirty sizes.
+
+## Props (`assets/props/`)
+
+| File        | Used for                                  |
+|-------------|-------------------------------------------|
+| `heart.png` | hearts floating above Sunny               |
+| `moon.png`  | night sky on the home screen              |
+| `fish.png`  | the Fish food in Feed                     |
+| `ball.png`  | saved for the games (step 5)              |
+
+Props are trimmed to their visible pixels and shown at 1× (heart) or
+2× (moon, fish). Any prop that's missing uses the built-in drawing.

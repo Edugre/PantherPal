@@ -9,7 +9,7 @@ import pygame
 
 import config
 from scenes.care import CareScene
-from ui import icons, text, theme
+from ui import icons, props, text, theme
 from ui.sunny import draw_sunny, make_sunny_renderer
 from ui.widgets import Button, panel
 
@@ -21,7 +21,7 @@ FOODS = [
      "fact": "Panthers are carnivores. That means they eat meat!"},
     {"name": "Broccoli", "icon": icons.BROCCOLI,
      "wrong": "No thanks! Panthers don't eat veggies. They eat meat!"},
-    {"name": "Fish", "icon": icons.FISH, "cost": 0, "food": 20,
+    {"name": "Fish", "icon": icons.FISH, "prop": "fish", "cost": 0, "food": 20,
      "fact": "Panthers can swim, but they like to hunt on land!"},
     {"name": "Candy", "icon": icons.CANDY,
      "wrong": "Candy is not good for panthers. Or for teeth!"},
@@ -30,6 +30,11 @@ FOODS = [
     {"name": "Big Steak", "icon": icons.STEAK, "cost": 10, "food": 50, "fun": 15,
      "fact": "Panthers hunt deer and wild hogs in the Everglades!"},
 ]
+
+
+def food_image(food):
+    """Hand-drawn prop when there is one, else the built-in pixel icon."""
+    return (food.get("prop") and props.get(food["prop"], 2)) or icons.icon(food["icon"], 3)
 
 
 class FoodCard(Button):
@@ -45,7 +50,7 @@ class FoodCard(Button):
             pygame.draw.rect(surface, theme.BLACK, self.rect.move(0, 2))
         fill = (45, 60, 100) if self.hover else theme.PANEL
         panel(surface, body, fill)
-        img = icons.icon(self.food["icon"], 3)
+        img = food_image(self.food)
         surface.blit(img, img.get_rect(center=(body.centerx, body.top + 20)))
         text.draw(surface, self.label, (body.centerx, body.bottom - 18), text.SMALL, anchor="center")
         cost = self.food.get("cost", 0)
@@ -149,5 +154,5 @@ class FeedScene(CareScene):
             (sx, sy), (ex, ey) = self.flying["start"], self.mouth
             x = sx + (ex - sx) * p
             y = sy + (ey - sy) * p - math.sin(p * math.pi) * 40
-            img = icons.icon(self.flying["food"]["icon"], 3)
+            img = food_image(self.flying["food"])
             surface.blit(img, img.get_rect(center=(int(x), int(y))))

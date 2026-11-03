@@ -35,7 +35,9 @@ def main():
     for i, mood in enumerate(MOODS):
         x, y = (i % cols) * cw, (i // cols) * ch
         sheet.blit(renderer.render(mood, 0.5), (x + 10, y + 4))
-        source = f"{resolve_mood(mood, available)}.png" if art else "built-in"
+        source = resolve_mood(mood, available) if art else "built-in"
+        if art and source == "idle" and "idle" not in art["drawn"]:
+            source = "happy (as idle)"
         text.draw(sheet, mood, (x + cw // 2, y + ch - 24), text.MEDIUM, theme.YELLOW, anchor="center")
         text.draw(sheet, source, (x + cw // 2, y + ch - 10), text.SMALL, theme.MUTED, anchor="center")
 
